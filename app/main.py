@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from .routers import tasks
 from .database import engine
 from .models import Base
+from .routers import auth
 
 Base.metadata.create_all(bind=engine)
 
@@ -12,6 +13,7 @@ app = FastAPI(
 )
 
 app.include_router(tasks.router)
+app.include_router(auth.router)
 
 @app.get("/")
 def home():
