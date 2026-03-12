@@ -1,8 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from fastapi import HTTPException
+
 from .. import crud, schemas, database
-router = APIRouter()
+router = APIRouter(
+    prefix="/tasks",
+    tags=["tasks"],
+)
 
 def get_db():
     db = database.SessionLocal()  # New session per request
@@ -11,13 +16,24 @@ def get_db():
     finally:
         db.close() # Always close after response
 
-@router.get("/tasks/{task_id}")
+@router.get("/{task_id}")
 def read_tasks(task_id: int, db: Session = Depends(get_db)):
-    return crud.get_tasks(db, task_id)
 
-@router.post("/tasks", response_model=schemas.Task)
+    task = crud.get_task(db, task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    return task
+
+@router.post("/")
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
-    return crud.create_task(db, task.title)
+    new_task = crud.create_task(db, task.title)
+
+    return {
+        "success": True,
+        "data": new_task
+    }
 
 @router.put("/tasks/{task_id}")
 def update_task(task_id: int, title: str, completed: bool, db: Session = Depends(get_db)):
@@ -25,5 +41,10 @@ def update_task(task_id: int, title: str, completed: bool, db: Session = Depends
 
 @router.delete("/tasks/{task_id}")
 def delete_task(task_id: int, db: Session = Depends(get_db)):
-    return crud.delete_task(db, task_id)
 
+    task = crud.delete_task(db, task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    return {"message": "Task deleted successfully"}
