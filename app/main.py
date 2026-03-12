@@ -1,7 +1,14 @@
 from fastapi import FastAPI
-from app.routers import tasks
+from .routers import tasks
+from .database import engine
+from .models import Base
+
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
+
 app.include_router(tasks.router)
+
 @app.get("/")
 def home():
-    return {"message": "Task Management API is running"}
+    return {"message": "Task Management API with Database"}
