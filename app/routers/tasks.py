@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
-from fastapi import HTTPException
-
 from .. import crud, schemas, database
+from ..models import User
+from ..security.dependencies import get_current_user
+
 router = APIRouter(
     prefix="/tasks",
     tags=["tasks"],
@@ -16,24 +16,31 @@ def get_db():
     finally:
         db.close() # Always close after response
 
-@router.get("/{task_id}")
-def read_tasks(task_id: int, db: Session = Depends(get_db)):
+@router.get("/")
+def read_tasks(
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+):
 
-    task = crud.get_task(db, task_id)
-
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    return task
+    return db.query(models.Task).filter(models.Task.owner_id == current_user.id).all()
 
 @router.post("/")
-def create_task(task: schemas.TasksCreate, db: Session = Depends(get_db)):
-    new_task = crud.create_task(db, task.title)
+def create_task(
+    task: schemas.TasksCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
 
-    return {
-        "success": True,
-        "data": new_task
-    }
+    new_task = models.Task(
+        title=task.title,
+        owner_id=current_user.id
+    )
+
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+
+    return new_task
 
 @router.put("/tasks/{task_id}")
 def update_task(task_id: int, title: str, completed: bool, db: Session = Depends(get_db)):

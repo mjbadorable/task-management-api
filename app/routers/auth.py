@@ -21,8 +21,9 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     hashed_password = hash_password(user.password)
 
     new_user = models.User(
+        username=user.username,
         email=user.email,
-        password=hashed_password,
+        hashed_password=hashed_password,
     )
 
     db.add(new_user)
@@ -32,17 +33,20 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return {"message": "User created successfully"}
 
 @router.post("/login")
-def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
+def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
 
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    # FIX 1: Access the .username property of the form
+    db_user = db.query(models.User).filter(models.User.email == user_credentials.username).first()
 
     if not db_user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        # FIX 2: Use 401 for both to stay secure
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    if not verify_password(user.password, db_user.password):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+    # FIX 3: Correct variable mapping
+    if not verify_password(user_credentials.password, db_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    token = create_access_token(data={"sub": user.email})
+    token = create_access_token(data={"sub": db_user.email})
 
     return {
         "access_token": token,

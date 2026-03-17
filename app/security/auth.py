@@ -1,7 +1,11 @@
 from passlib.context import CryptContext
-from jose import jwt
+from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
+from fastapi import HTTPException
+import os
+
+from starlette import status
 
 SECRET_KEY = 'supersecretkey'
 ALGORITHM = 'HS256'
@@ -30,4 +34,17 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, ALGORITHM)
 
     return encoded_jwt
+
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        return email
+
+    except:
+        raise HTTPException(status_code=404, detail="Invalid token")
 
